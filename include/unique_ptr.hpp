@@ -10,11 +10,6 @@ class unique_ptr {
   Deleter deleter;
 
  public:
-  using pointer = T*;
-  using element_type = T;
-  using deleter_type = Deleter;
-
-
   unique_ptr() noexcept : source(nullptr), deleter() {}
   explicit unique_ptr(T* p) : source(p), deleter() {}
   unique_ptr(T* p, const Deleter& d) : source(p), deleter(d) {}
