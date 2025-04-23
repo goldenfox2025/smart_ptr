@@ -159,7 +159,7 @@ class WeakPtr {
 
  public:
   WeakPtr() : ctrl(nullptr), ptr(nullptr) {};
-  // 只允许从共享指针构造
+
   WeakPtr(const SharedPtr<T>& sp) {
     if (sp.ctrl) {
       sp.ctrl->weak_cnt.fetch_add(1, std::memory_order_release);
