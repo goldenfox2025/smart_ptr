@@ -3,3 +3,4 @@ build
 test.cpp
 test
 test_file.txt
+.vscode

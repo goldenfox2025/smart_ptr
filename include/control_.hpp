@@ -1,7 +1,7 @@
 #pragma once
 #include <atomic>
-#include <functional>
 #include <iostream>
+#include "func.hpp"
 using namespace std;
 
 struct control_block_base {
@@ -16,7 +16,7 @@ struct control_block_base {
 template <typename T>
 class control_block : public control_block_base {
  public:
-  function<void(T*)> deleter;
+  mystd::function<void(T*)> deleter;
   T* ptr;
   void delete_ptr() { deleter(ptr); }
   control_block() {}
@@ -24,7 +24,7 @@ class control_block : public control_block_base {
       : ptr(p),
         deleter([](T* p) -> void { delete p; }),
         control_block_base(1, 0) {}
-  control_block(T* p, function<void(T*)> d)
+  control_block(T* p, mystd::function<void(T*)> d)
       : ptr(p), deleter(d), control_block_base(1, 0) {}
   control_block(const control_block& other) = delete;
   ~control_block() {}
@@ -47,7 +47,7 @@ class SharedPtr {
  public:
   SharedPtr() noexcept : ptr(nullptr), ctrl(nullptr) {}
   SharedPtr(T* p) : ptr(p), ctrl(new control_block<T>(p)) {}
-  SharedPtr(T* p, function<void(T*)> d)
+  SharedPtr(T* p, mystd::function<void(T*)> d)
       : ptr(p), ctrl(new control_block<T>(p, d)) {}
   SharedPtr(const SharedPtr& other) {
     if (other.ctrl) {
