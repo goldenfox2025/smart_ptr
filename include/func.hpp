@@ -27,11 +27,10 @@ private:
     virtual std::unique_ptr<function_base> clone() const = 0;
     virtual R invoke(Args... args) const = 0;
   };
-  
+
   // F是被擦除的类型
   template <typename F> struct function_derived : function_base {
     F callable;
-
 
     explicit function_derived(const F &f) : callable(f) {}
     explicit function_derived(F &&f) : callable(std::move(f)) {}
@@ -78,12 +77,8 @@ public:
   }
 
   // 5. 模板构造函数: 从任意可调用对象 f 构造
-  template <typename F, typename = enable_if_callable<F>> function(F f) {
-    // 这是核心的类型擦除构造函数。
-    // 1. 对 F 进行类型衰变 (decay) 得到实际存储的类型 CleanF。
+  template <typename F, typename = enable_if_callable<F>> function(F &&f) {
     using CleanF = std::decay_t<F>;
-    // 2. 创建一个 function_derived<CleanF> 的实例来包装 f。
-    //    使用 std::forward<F>(f) 完美转发 f。
     base_ptr_ = std::make_unique<function_derived<CleanF>>(std::forward<F>(f));
   }
 
