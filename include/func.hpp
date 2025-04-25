@@ -12,7 +12,6 @@
 namespace mystd {
 
 using std::bad_function_call;
-
 template <typename Signature> class function;
 
 // 核心实现：针对函数签名 R(Args...) 的特化版本
@@ -31,14 +30,11 @@ private:
   // F是被擦除的类型
   template <typename F> struct function_derived : function_base {
     F callable;
-
     explicit function_derived(const F &f) : callable(f) {}
     explicit function_derived(F &&f) : callable(std::move(f)) {}
-
     std::unique_ptr<function_base> clone() const override {
       return std::make_unique<function_derived<F>>(callable);
     }
-
     R invoke(Args... args) const override {
       return std::invoke(callable, std::forward<Args>(args)...);
     }
@@ -86,6 +82,7 @@ public:
   ~function() {
     // unique_ptr 会自动管理 function_base 的生命周期。
   }
+
 
   // --- 赋值运算符 ---
 
