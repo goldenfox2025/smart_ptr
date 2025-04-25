@@ -9,14 +9,7 @@
 
 namespace mystd {
 
-// =======================================
-// 一个带 SBO 的简化版 function 实现
-// 我们将分多步引导：
-// 1. 定义存储缓冲与函数指针类型
-// 2. 实现类型擦除的管理函数
-// 3. 构造、拷贝、移动、析构逻辑
-// 4. 调用 operator()
-// =======================================
+
 
 using bad_function_call = std::bad_function_call;
 
@@ -30,11 +23,12 @@ private:
     // 为什么要预留一段固定大小的缓冲区？
     // 如果可调用对象足够小，则直接放在缓冲区中，零堆分配。
     // 否则再用 heap。这样避免了大量小对象的频繁 new/delete。
-    static constexpr std::size_t SBO_BUFFER_SIZE  = 128; // 增加缓冲区大小以容纳嵌套function对象
+    static constexpr std::size_t SBO_BUFFER_SIZE  = 128;
     static constexpr std::size_t SBO_BUFFER_ALIGN = alignof(std::max_align_t);
 
     // 原始存储区
     alignas(SBO_BUFFER_ALIGN) unsigned char buffer_[SBO_BUFFER_SIZE];
+
     // 如果对象太大，会在堆上分配，存储指针
     void* heap_ptr_ = nullptr;
     bool uses_heap_ = false;
@@ -93,55 +87,58 @@ private:
 
     template <typename F>
     static void move_impl(function& src, function& dst) noexcept {
-        // 检查大小和对齐要求
-        constexpr bool can_use_sbo = sizeof(F) <= SBO_BUFFER_SIZE &&
-                                     alignof(F) <= SBO_BUFFER_ALIGN;
+        // 使用建立和交换的方式简化移动实现
 
-        // 使用if constexpr来让编译器在编译时选择正确的分支
-        if constexpr (!can_use_sbo) {
-            // 对象太大，必须使用堆
-            if (src.uses_heap_) {
-                dst.heap_ptr_ = src.heap_ptr_;
-            } else {
-                dst.heap_ptr_ = new F(std::move(*get_ptr<F>(src)));
-            }
+        // 1. 如果源对象在堆上，直接交换指针和状态
+        if (src.uses_heap_) {
+            // 设置目标对象的状态
+            dst.heap_ptr_ = src.heap_ptr_;
             dst.uses_heap_ = true;
-        } else {
-            // 对象可以放在SBO缓冲区，但如果源对象在堆上，我们也应该使用堆
-            if (src.uses_heap_) {
-                dst.heap_ptr_ = src.heap_ptr_;
-                dst.uses_heap_ = true;
-            } else {
+            dst.copy_fn_    = src.copy_fn_;
+            dst.move_fn_    = src.move_fn_;
+            dst.destroy_fn_ = src.destroy_fn_;
+            dst.invoke_fn_  = src.invoke_fn_;
+
+            // 清空源对象
+            src.heap_ptr_ = nullptr;
+            src.uses_heap_ = false;
+            src.copy_fn_    = nullptr;
+            src.move_fn_    = nullptr;
+            src.destroy_fn_ = nullptr;
+            src.invoke_fn_  = nullptr;
+        }
+        // 2. 如果源对象在SBO缓冲区中
+        else {
+            // 检查大小和对齐要求
+            constexpr bool can_use_sbo = sizeof(F) <= SBO_BUFFER_SIZE &&
+                                         alignof(F) <= SBO_BUFFER_ALIGN;
+
+            if constexpr (can_use_sbo) {
+                // 在目标的缓冲区中构造对象
                 new (dst.buffer_) F(std::move(*get_ptr<F>(src)));
                 dst.uses_heap_ = false;
-            }
-        }
-
-        // 复制函数指针
-        dst.copy_fn_    = src.copy_fn_;
-        dst.move_fn_    = src.move_fn_;
-        dst.destroy_fn_ = src.destroy_fn_;
-        dst.invoke_fn_  = src.invoke_fn_;
-
-        // 清理源对象
-        if (src.uses_heap_) {
-            // 如果目标也使用了源对象的堆指针，则不要删除源对象的内存
-            if (dst.heap_ptr_ == src.heap_ptr_) {
-                src.heap_ptr_ = nullptr;
             } else {
-                delete get_ptr<F>(src);
+                // 对象太大，必须使用堆
+                dst.heap_ptr_ = new F(std::move(*get_ptr<F>(src)));
+                dst.uses_heap_ = true;
             }
-        } else {
-            get_ptr<F>(src)->~F();
-        }
 
-        src.uses_heap_ = false;
-        src.heap_ptr_ = nullptr;
-        // 分别设置为nullptr，避免类型转换错误
-        src.copy_fn_    = nullptr;
-        src.move_fn_    = nullptr;
-        src.destroy_fn_ = nullptr;
-        src.invoke_fn_  = nullptr;
+            // 复制函数指针
+            dst.copy_fn_    = src.copy_fn_;
+            dst.move_fn_    = src.move_fn_;
+            dst.destroy_fn_ = src.destroy_fn_;
+            dst.invoke_fn_  = src.invoke_fn_;
+
+            // 析构源对象
+            get_ptr<F>(src)->~F();
+
+            // 清空源对象
+            src.uses_heap_ = false;
+            src.copy_fn_    = nullptr;
+            src.move_fn_    = nullptr;
+            src.destroy_fn_ = nullptr;
+            src.invoke_fn_  = nullptr;
+        }
     }
 
     template <typename F>
