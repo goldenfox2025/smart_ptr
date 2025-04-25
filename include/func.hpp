@@ -117,14 +117,6 @@ public:
     // 2. 创建一个 function_derived<CleanF> 的实例来包装 f。
     //    使用 std::forward<F>(f) 完美转发 f。
     base_ptr_ = std::make_unique<function_derived<CleanF>>(std::forward<F>(f));
-    // SBO版本：
-    //    - 判断 sizeof(CleanF) 是否适合放入 buffer。
-    //    - 如果适合：使用 placement new 在 storage_.buffer 中构造
-    //    CleanF，设置相应的 manager 和 invoker 函数指针。
-    //    - 如果不适合：在堆上 new 一个 CleanF，将指针存入
-    //    storage_.ptr，设置相应的 manager 和 invoker 函数指针，标记 uses_heap_
-    //    = true。
-    // 需要处理 std::bad_alloc 异常。
   }
 
   // --- 析构函数 ---
