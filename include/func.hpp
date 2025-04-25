@@ -80,11 +80,11 @@ private:
   // 检查类型 F 是否可以用来构造 function<R(Args...)>
   template <typename F>
   using enable_if_callable = std::enable_if_t<
-      // 1. F 不是 function 类型本身 (防止 function(const function&) 被模板捕获)
+      // 1. F 不是 function 类型本身
       !std::is_same_v<std::decay_t<F>, function> &&
       // 2. F 必须是可调用的，且其结果可以转换/返回为 R
-      std::is_invocable_r_v<R, F &, Args...>
-      >;
+      std::is_invocable_r_v<R, F, Args...>  // 移除了 F&
+  >;
 
 public:
   using result_type = R;
@@ -131,6 +131,7 @@ public:
     function(other).swap(*this);
     return *this; // Placeholder
   }
+
 
   // 2. 移动赋值运算符
   function &operator=(function &&other) noexcept {
