@@ -6,4 +6,4 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include_directories(include)
 
-add_executable(test_make_shared src/test_make_shared.cpp)
+add_executable(test src/test_make_shared.cpp)
