@@ -370,6 +370,86 @@ void test_custom_deleter() {
   print_sync("Test Case 3 Passed.");
 }
 
+// --- Test Case 4: make_shared Function ---
+// Goal: Verify that make_shared works correctly with various argument types
+void test_make_shared() {
+  print_sync("\n--- Test Case 4: make_shared Function ---");
+
+  // Test with no arguments
+  {
+    struct DefaultConstructible {
+      bool constructed = true;
+      DefaultConstructible() {}
+    };
+
+    auto ptr = ::make_shared<DefaultConstructible>();  // 使用全局命名空间的make_shared
+    print_sync("  make_shared with no arguments: " +
+               std::string(ptr && ptr->constructed ? "PASSED" : "FAILED"));
+    assert(ptr && ptr->constructed);
+  }
+
+  // Test with single argument
+  {
+    struct SingleArg {
+      int value;
+      SingleArg(int v) : value(v) {}
+    };
+
+    auto ptr = ::make_shared<SingleArg>(42);  // 使用全局命名空间的make_shared
+    print_sync("  make_shared with single argument: " +
+               std::string(ptr && ptr->value == 42 ? "PASSED" : "FAILED"));
+    assert(ptr && ptr->value == 42);
+  }
+
+  // Test with multiple arguments
+  {
+    struct MultipleArgs {
+      int a;
+      double b;
+      std::string c;
+      MultipleArgs(int x, double y, const std::string& z) : a(x), b(y), c(z) {}
+    };
+
+    auto ptr = ::make_shared<MultipleArgs>(10, 3.14, "hello");  // 使用全局命名空间的make_shared
+    bool passed = ptr && ptr->a == 10 && ptr->b == 3.14 && ptr->c == "hello";
+    print_sync("  make_shared with multiple arguments: " +
+               std::string(passed ? "PASSED" : "FAILED"));
+    assert(passed);
+  }
+
+  // Test with a complex type that requires perfect forwarding
+  {
+    struct ComplexArg {
+      std::string value;
+      ComplexArg(std::string&& s) : value(std::move(s)) {}
+    };
+
+    std::string test_str = "test string";
+    auto ptr1 = ::make_shared<ComplexArg>(std::move(test_str));  // 使用全局命名空间的make_shared
+    print_sync("  make_shared with move semantics: " +
+               std::string(ptr1 && ptr1->value == "test string" && test_str.empty() ? "PASSED" : "FAILED"));
+    assert(ptr1 && ptr1->value == "test string");
+    assert(test_str.empty()); // The string should have been moved
+  }
+
+  // Test with TestData class (from the other tests)
+  {
+    std::atomic<int> counter(0);
+    auto ptr = ::make_shared<TestData>(100, &counter);  // 使用全局命名空间的make_shared
+    print_sync("  make_shared with TestData: " +
+               std::string(ptr && ptr->id == 100 ? "PASSED" : "FAILED"));
+    assert(ptr && ptr->id == 100);
+
+    // Test destruction
+    ptr = nullptr;
+    print_sync("  TestData destruction after make_shared: " +
+               std::string(counter.load() == 1 ? "PASSED" : "FAILED"));
+    assert(counter.load() == 1);
+  }
+
+  print_sync("Test Case 4 Passed.");
+}
+
 int main() {
   print_sync("Starting Smart Pointer Thread Safety Tests...");
 
@@ -377,6 +457,7 @@ int main() {
     test_concurrent_copies();
     test_concurrent_lock();  // Now uses atomic flags internally
     test_custom_deleter();
+    test_make_shared();  // Test the new make_shared function
     // Add more test cases here (e.g., concurrent assignments, mixed shared/weak
     // destruction)
 
